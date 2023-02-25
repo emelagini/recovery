@@ -15,7 +15,8 @@ dispatcher = updater.dispatcher
 conv_handler = ConversationHandler(
     entry_points=[CommandHandler('start', start)],
     states={
-          BEGIN: [MessageHandler(Filters.regex("^({GO})$"), begin)],
+          NAME: [MessageHandler(Filters.text & ~Filters.command, get_name)],
+          BEGIN: [MessageHandler(Filters.text & ~Filters.command,begin)],
           LEVEL: [MessageHandler(Filters.regex("^({EASY})|({MEDIUM})|({HARD})$"), level)], 
           GAME: [MessageHandler(Filters.text & ~Filters.command, game)]  
         },

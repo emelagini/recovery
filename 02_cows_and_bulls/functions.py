@@ -5,10 +5,13 @@ from telegram import (
     ReplyKeyboardRemove
 )
 import random
+import pymorphy2
 
+morp = pymorphy2.MorphAnalyzer()
 
-BEGIN, LEVEL, GAME = range(3)#остаётся 123
+NAME,BEGIN, LEVEL, GAME = range(4)#остаётся 1234
 GO = "Вперед"
+SKIP = "Пропустить"
 EASY, MEDIUM, HARD = "Простой", "Средний", "Сложный"
 
 
@@ -30,16 +33,32 @@ def start(update: Update, context: CallbackContext):
     update.message.reply_text("Твоя цель - отгадать загаданное слово")
     update.message.reply_text(
         f'Чтобы начать, нажми на "{GO}"', reply_markup=keyboard)
+    return NAME
+
+
+def get_name(update: Update, context: CallbackContext):
+    full_name = update.effective_chat.full_name
+    mark_up = [[SKIP]]
+    keyboard = ReplyKeyboardMarkup(
+        keyboard=mark_up,
+        resize_keyboard=True,
+        one_time_keyboard=True)
+    update.message.reply_text(f"можно называть вас{full_name}? Если нет,то назовите своё имя,иначе - нажмите {SKIP}",reply_markup=keyboard)
+
     return BEGIN
 
 
 def begin(update: Update, context: CallbackContext):
+    name = update.message.text
+    if name == SKIP:
+        name = update.effective_chat.full_name
+    context.user_data["имя"] = name
     mark_up = [[EASY, MEDIUM, HARD]]
     keyboard = ReplyKeyboardMarkup(
         keyboard=mark_up,
         resize_keyboard=True,
         one_time_keyboard=True,
-        input_field_placeholder=f'{EASY} - 3 буквы, {MEDIUM} - 4 буквы, {HARD} - 5 букв'
+        input_field_placeholder=f'{EASY} - 3 буквы, {MEDIUM} - 4 буквы, {HARD} 45- 5 букв'
     )
     update.message.reply_text('Выбери уровень сложности или нажми /end!', reply_markup=keyboard)
     
@@ -53,6 +72,7 @@ def begin(update: Update, context: CallbackContext):
 
 def level(update: Update, context: CallbackContext):
     level_storage = update.message.text
+    name = context.user_data["имя"]
     if level_storage == EASY:
         with open(f"02_cows_and_bulls/easy.txt",encoding='utf-8') as file:
             words = file.read().split("\n")
@@ -65,30 +85,35 @@ def level(update: Update, context: CallbackContext):
     else:
       update.message.reply_text("Недоступен файл")
     word = random.choice(words) 
-    context.message.reply_text["word"] = word
-    update.message.reply_text(f"Было выбрано{ word}")
+    context.user_data["word"] = word
+    update.message.reply_text(f"{word},отгадайте моё слово .Количество букв  в нём{len(word)} ")
     return GAME
 
 def game(update: Update, context: CallbackContext):  # callback'
-    message = update.message.text
-    secret_number = context.user_data['секретное число']  # достаем из рюкзака
-    if len(message) != 4 and not message.isdigit():  # не число
-        update.message.reply_text("Вводить можно только четырехзначные числа!")
+    my_word = update.message.text
+    tag = morph.parse(my_word)[0]
+    secret_word = context.user_data['word']  # достаем из рюкзака
+
+    if len(my_word) != len(secret_word):  # не число
+        update.message.reply_text(f"Нужно вводить слова из {len(secret_word)} букв")
+        return  # выход из функции
+    elif my_word !=tag.normal_form or tag.tag.POS != 'NOUN' or 'DictionaryAnalyzer()' not in str (tag.methods_stack):
+        update.message.reply_text(f'Нужно вводить нормальные слова из{len(secret_word)}')
         return  # выход из функции
     cows = 0
     bulls = 0
-    secret_number = str(secret_number)
-    for mesto, chislo in enumerate(message):
-        if chislo in secret_number:
-            if message[mesto] == secret_number[mesto]:
+    for mesto, letter in enumerate(my_word):
+        if letter in secret_word:
+            if my_word[mesto] == secret_word[mesto]:
                 bulls += 1
             else:
                 cows += 1
-    update.message.reply_text(f'В вашем числе {cows} коров и {bulls} быков')
-    if bulls == 4:
-        update.message.reply_text('Вы угадали! Вы красавчик')
-        del context.user_data['секретное число']
+    update.message.reply_text(f'В вашем слове {cows} коров и {bulls} быков')
+    if bulls == len(secret_word):
+        update.message.reply_text('Вы угадали! Вы красавчик.Если хотите начать заново нажмите /start')
+        del context.user_data['word']
 
 def end(update: Update, context: CallbackContext):  # точка выхода
-    update.message.reply_text("Значит, ты выбрал конец")
+    name =  context.user_data["имя"]
+    update.message.reply_text(f"Значит, ты выбрал конец, {name}")
     return ConversationHandler.END
