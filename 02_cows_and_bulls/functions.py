@@ -6,6 +6,7 @@ from telegram import (
 )
 import random
 import pymorphy2
+from stickers import *
 
 morp = pymorphy2.MorphAnalyzer()
 
@@ -23,6 +24,7 @@ def start(update: Update, context: CallbackContext):
         one_time_keyboard=True,
         input_field_placeholder=f'Нажми на кнопку "{GO}", поиграем!'
     )
+    update.message.reply_sticker(START_STICER)
     update.message.reply_text(
         'В этой игре компьютер загадывает слово, и говорит тебе, сколько в нем букв')
     update.message.reply_text('Ты говоришь слово из такого же количества букв')
@@ -37,6 +39,7 @@ def start(update: Update, context: CallbackContext):
 
 
 def get_name(update: Update, context: CallbackContext):
+    update.message.reply_sticker(NAME_STICER)
     full_name = update.effective_chat.full_name
     mark_up = [[SKIP]]
     keyboard = ReplyKeyboardMarkup(
@@ -90,8 +93,8 @@ def level(update: Update, context: CallbackContext):
     return GAME
 
 def game(update: Update, context: CallbackContext):  # callback'
-    my_word = update.message.text
-    tag = morph.parse(my_word)[0]
+    my_word = update.message.text.lower()
+    tag = morph.parse(my_word)[0] #набор грамем(число падеж род и тд)
     secret_word = context.user_data['word']  # достаем из рюкзака
 
     if len(my_word) != len(secret_word):  # не число
@@ -102,12 +105,12 @@ def game(update: Update, context: CallbackContext):  # callback'
         return  # выход из функции
     cows = 0
     bulls = 0
-    for mesto, letter in enumerate(my_word):
-        if letter in secret_word:
-            if my_word[mesto] == secret_word[mesto]:
-                bulls += 1
-            else:
-                cows += 1
+    for mesto, letter in enumerate(my_word): # проходимся по буквам и её месту слова
+        if letter in secret_word: # если буква в секретном слове
+            if my_word[mesto] == secret_word[mesto]:# если местоположение букв в моём слове и секретном слове совпадает
+                bulls += 1 # добавляем быка
+            else: # если местоположение не совпадает
+                cows += 1 # добавляем одну корову
     update.message.reply_text(f'В вашем слове {cows} коров и {bulls} быков')
     if bulls == len(secret_word):
         update.message.reply_text('Вы угадали! Вы красавчик.Если хотите начать заново нажмите /start')
